@@ -2,7 +2,9 @@ from sklearn.datasets import load_wine
 import pandera as pa
 import pandera.typing as pat
 
-class DatasetWine(pa.DataFrameModel):
+DatasetWine = pat.DataFrame['ModelWine']
+
+class ModelWine(pa.DataFrameModel):
   alcohol: pa.Float64
   malic_acid: pa.Float64
   ash: pa.Float64
@@ -19,7 +21,7 @@ class DatasetWine(pa.DataFrameModel):
   target: pa.Int32
 
   @classmethod
-  def load(cls) -> pat.DataFrame['DatasetWine']:
+  def load(cls) -> DatasetWine:
     # noinspection PyTypeChecker
     return cls.validate(
       load_wine(as_frame=True)['frame']

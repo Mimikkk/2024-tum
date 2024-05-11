@@ -2,7 +2,9 @@ from sklearn.datasets import load_iris
 import pandera as pa
 import pandera.typing as pat
 
-class DatasetIris(pa.DataFrameModel):
+DatasetIris = pat.DataFrame['IrisModel']
+
+class ModelIris(pa.DataFrameModel):
   sepal_length: pa.Float64
   sepal_width: pa.Float64
   petal_length: pa.Float64
@@ -10,7 +12,7 @@ class DatasetIris(pa.DataFrameModel):
   target: pa.Int32
 
   @classmethod
-  def load(cls) -> pat.DataFrame['DatasetIris']:
+  def load(cls) -> DatasetIris:
     # noinspection PyTypeChecker
     return cls.validate(
       load_iris(as_frame=True)['frame']
