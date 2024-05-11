@@ -36,27 +36,51 @@ class DatasetNoise:
     return self
 
   def add_empty(self, column_id: str) -> 'DatasetNoise':
-    return self.add_noise(column_id, 0.0)
+    self.frame = self.frame.assign(**{column_id: 0})
+    return self
 
   def add_static_noise(self, column_id: str, scale: float) -> 'DatasetNoise':
-    if column_id not in self.frame: self.add_empty(column_id)
+    self.validate_column(column_id)
     return self.add_noise(column_id, create_static_noise(self.frame[column_id], scale))
 
+  def add_static_noises(self, column_id: str, count: int, scale: float) -> 'DatasetNoise':
+    for i in range(count):
+      self.add_static_noise(f'{column_id}-{i}', scale)
+    return self
+
   def add_random_noise(self, column_id: str, scale: tuple[float, float]) -> 'DatasetNoise':
-    if column_id not in self.frame: self.add_empty(column_id)
+    self.validate_column(column_id)
     return self.add_noise(column_id, create_random_noise(self.frame[column_id], scale))
 
+  def add_random_noises(self, column_id: str, count: int, scale: tuple[float, float]) -> 'DatasetNoise':
+    for i in range(count):
+      self.add_random_noise(f'{column_id}-{i}', scale)
+    return self
+
   def add_static_correlated_noise(self, column_id: str, correlated_column_id: str) -> 'DatasetNoise':
-    if column_id not in self.frame: self.add_empty(column_id)
+    self.validate_column(column_id)
     column_a = self.frame[column_id]
     column_b = self.frame[correlated_column_id]
     return self.add_noise(column_id, create_static_correlated_noise(column_a, column_b))
 
+  def add_static_correlated_noises(self, column_id: str, correlated_column_id: str, count: int) -> 'DatasetNoise':
+    for i in range(count):
+      self.add_static_correlated_noise(f'{column_id}-{i}', correlated_column_id)
+    return self
+
   def add_random_correlated_noise(self, column_id: str, correlated_column_id: str) -> 'DatasetNoise':
-    if column_id not in self.frame: self.add_empty(column_id)
+    self.validate_column(column_id)
     column_a = self.frame[column_id]
     column_b = self.frame[correlated_column_id]
     return self.add_noise(column_id, create_random_correlated_noise(column_a, column_b))
+
+  def add_random_correlated_noises(self, column_id: str, correlated_column_id: str, count: int) -> 'DatasetNoise':
+    for i in range(count):
+      self.add_random_correlated_noise(f'{column_id}-{i}', correlated_column_id)
+    return self
+
+  def validate_column(self, column_id: str) -> None:
+    if column_id not in self.frame.columns: self.add_empty(column_id)
 
   def shuffle(self, column_id: str, percentage: float) -> 'DatasetNoise':
     col = self.frame[column_id]

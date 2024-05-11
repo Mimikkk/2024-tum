@@ -7,7 +7,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 
-from src.datasets import ModelIris, ModelWine
+from src.datasets import ModelIris, ModelWine, DatasetNoise
 
 # 2. Implementacja algorytmów uczenia maszynowego
 #     - Wykorzystano algorytmy: SVM, KNN, Random Forest, oraz prostą sieć neuronową MLP
@@ -45,9 +45,14 @@ def score_model(create_model: Callable[[], Model], frame: DataFrame) -> float:
   return accuracy_score(y_test, y_pred)
 
 def main():
+  iris = ModelIris.load()
+  wine = ModelWine.load()
+
   datasets = {
-    "iris": ModelIris.load(),
-    "wine": ModelWine.load(),
+    "iris-base": iris,
+    "iris-static_noise1": DatasetNoise(iris).add_static_noise('noise', 0.1).build(),
+    "iris-static_noise5": DatasetNoise(iris).add_static_noises('noise', 5, 0.1).build(),
+    "wine-base": wine,
   }
 
   model_factories = {
