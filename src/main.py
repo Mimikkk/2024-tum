@@ -1,4 +1,5 @@
-from typing import NamedTuple, Protocol, Callable
+from collections import defaultdict
+from typing import NamedTuple, Protocol, Callable, Mapping
 
 from pandas import DataFrame, Series
 from sklearn.ensemble import RandomForestClassifier
@@ -57,16 +58,32 @@ def main():
 
   model_factories = {
     "SVC": lambda: SVC(),
+    "KNN2": lambda: KNeighborsClassifier(n_neighbors=2),
     "KNN3": lambda: KNeighborsClassifier(n_neighbors=3),
+    "KNN4": lambda: KNeighborsClassifier(n_neighbors=4),
     "RandomForest": lambda: RandomForestClassifier(max_depth=8),
     "MLP": lambda: MLPClassifier(max_iter=100_000),
   }
 
+  score_map: Mapping[str, list[float]] = defaultdict(list)
+
+  RunCount = 1
   for dataset_label, dataset in datasets.items():
-    print(f"{dataset_label} dataset:")
+    print(f"Running dataset: {dataset_label}")
     for model_label, factory in model_factories.items():
-      score = score_model(factory, dataset)
-      print(f"\t{model_label}: {score * 100:.4f}%")
+      print(f"- Running model: {model_label}")
+      score_map[f'{dataset_label}-{model_label}'] = [
+        score_model(factory, dataset)
+        for _ in range(RunCount)
+      ]
+
+  import numpy as np
+  for key, scores in score_map.items():
+    print(f"{key}:mean  : {np.mean(scores)*100:06.2f}%")
+    print(f"{key}:median: {np.median(scores)*100:06.2f}%")
+    print(f"{key}:std   : {np.std(scores)*100:06.2f}%")
+    print(f"{key}:min   : {np.min(scores)*100:06.2f}%")
+    print(f"{key}:max   : {np.max(scores)*100:06.2f}%")
     print()
 
 if __name__ == '__main__':
