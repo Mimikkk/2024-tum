@@ -7,7 +7,7 @@ from typing import Literal, TypeVar, Callable, Any, get_args
 MemoType = Literal['file', 'memory']
 Fn = TypeVar('Fn', bound=Callable[..., Any])
 
-def memo(type: MemoType = 'memory', verbose: bool | int = False):
+def memo(type: MemoType = 'memory', hashstr: str = None, verbose: bool | int = False):
   """
   Memoize function call to file system based on hash of function arguments.
   Its purpose is to speed up development by caching function calls. Functions that are already fast should not be memoized, as the overhead of reading and writing to the file system will slow them down.
@@ -22,10 +22,13 @@ def memo(type: MemoType = 'memory', verbose: bool | int = False):
       def wrap(fn: Fn) -> Fn:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-          hash = hashlib.md5()
-          hash.update(pickle.dumps(args))
-          hash.update(pickle.dumps(kwargs))
-          hash = hash.hexdigest()
+          if hashstr:
+            hash = hashstr
+          else:
+            hash = hashlib.md5()
+            hash.update(pickle.dumps(args))
+            hash.update(pickle.dumps(kwargs))
+            hash = hash.hexdigest()
           filename = f"{fn.__name__}-{hash}"
 
           if verbose > 1: print(f'[memo::{fn.__name__}-{hash[:6]}...] - {hash[:6]}...')

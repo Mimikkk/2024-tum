@@ -11,6 +11,8 @@ from sklearn.svm import SVC
 from src.datasets import ModelIris, ModelWine, DatasetWine, DatasetIris, DatasetNoise
 import numpy as np
 
+from src.memo import memo
+
 # 2. Implementacja algorytmów uczenia maszynowego
 #     - Wykorzystano algorytmy: SVM, KNN, Random Forest, oraz prostą sieć neuronową MLP
 #     - Wykorzystano gotowe implementacje z biblioteki sklearn oraz keras
@@ -48,6 +50,13 @@ def score_model(create_model: Callable[[], Model], frame: DataFrame) -> float:
 
 import itertools as it
 
+@memo(type='file', hashstr='base_datasets', verbose=True)
+def load_datasets() -> tuple[DatasetIris, DatasetWine]:
+  iris = ModelIris.load()
+  wine = ModelWine.load()
+  return iris, wine
+
+@memo(type='file', hashstr='noise_datasets', verbose=True)
 def create_noisy_datasets(iris: DatasetIris, wine: DatasetWine) -> Mapping[str, DataFrame]:
   datasets = {
     "iris-base": iris,
@@ -111,7 +120,7 @@ def create_noisy_datasets(iris: DatasetIris, wine: DatasetWine) -> Mapping[str, 
     datasets[dataset_label] = noise.build()
   return datasets
 
-def create_model_factories():
+def create_model_descriptors() -> Mapping[str, Callable[[], Model]]:
   return {
     "SVC": lambda: SVC(),
     "KNN2": lambda: KNeighborsClassifier(n_neighbors=2),
@@ -121,32 +130,45 @@ def create_model_factories():
     "MLP": lambda: MLPClassifier(max_iter=100_000),
   }
 
-def main():
-  iris = ModelIris.load()
-  wine = ModelWine.load()
-
-  datasets = create_noisy_datasets(iris, wine)
-  model_factories = create_model_factories()
-
+@memo(type='file', hashstr='experiments', verbose=True)
+def run_experiments(
+    datasets: Mapping[str, DataFrame],
+    model_descriptors: Mapping[str, Callable[[], Model]],
+    run_count: int
+) -> Mapping[
+  str, list[float]]:
   score_map: Mapping[str, list[float]] = defaultdict(list)
 
-  RunCount = 1
   for dataset_label, dataset in datasets.items():
     print(f"Running dataset: {dataset_label}")
-    for model_label, create_model in model_factories.items():
+    for model_label, create_model in model_descriptors.items():
       print(f"- Running model: {model_label}")
-      score_map[f'{dataset_label}-{model_label}'] = [
+      score_map[f'{dataset_label}:{model_label}'] = [
         score_model(create_model, dataset)
-        for _ in range(RunCount)
+        for _ in range(run_count)
       ]
 
+  return score_map
+
+@memo(type='file', hashstr='results', verbose=True)
+def summarize_results(score_map: Mapping[str, list[float]]) -> Mapping[str, Mapping[str, float]]:
+  results = {}
   for key, scores in score_map.items():
-    print(f"{key}:mean  : {np.mean(scores) * 100:06.2f}%")
-    print(f"{key}:median: {np.median(scores) * 100:06.2f}%")
-    print(f"{key}:std   : {np.std(scores) * 100:06.2f}%")
-    print(f"{key}:min   : {np.min(scores) * 100:06.2f}%")
-    print(f"{key}:max   : {np.max(scores) * 100:06.2f}%")
-    print()
+    metrics = {'mean': np.mean, 'median': np.median, 'std': np.std, 'min': np.min, 'max': np.max}
+    results[key] = {metric: func(scores) for metric, func in metrics.items()}
+  return results
+
+def main():
+  run_count = 1
+  iris, wine = load_datasets()
+  datasets = create_noisy_datasets(iris, wine)
+  model_descriptors = create_model_descriptors()
+  results = run_experiments(datasets, model_descriptors, run_count=run_count)
+
+  import pickle as pkl
+
+  with open('results.pkl', 'wb') as file:
+    pkl.dump(results, file)
 
 if __name__ == '__main__':
   main()

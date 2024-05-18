@@ -22,7 +22,6 @@ Szum może być dodawany na różnych etapach procesu uczenia, np.:
     - Oraz zbiór danych "Wine" dostępny w bibliotece sklearn.datasets
 2. Implementacja algorytmów uczenia maszynowego
     - Wykorzystano algorytmy: SVM, KNN, Random Forest, oraz prostą sieć neuronową MLP
-    - Wykorzystano gotowe implementacje z biblioteki sklearn oraz keras
     - Zaimplementowano funkcję, która zwraca trafność klasyfikacji dla zbioru danych
 3. Implementacja sposobów dodawania szumu
     - Dodawanie szumu nowych cech wejściowych z czystym szumem
