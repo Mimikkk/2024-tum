@@ -8,7 +8,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 
-from src.datasets import ModelIris, ModelWine, DatasetNoise
+from src.datasets import ModelIris, ModelWine, DatasetWine, DatasetIris, DatasetNoise
+import numpy as np
 
 # 2. Implementacja algorytmów uczenia maszynowego
 #     - Wykorzystano algorytmy: SVM, KNN, Random Forest, oraz prostą sieć neuronową MLP
@@ -45,18 +46,73 @@ def score_model(create_model: Callable[[], Model], frame: DataFrame) -> float:
 
   return accuracy_score(y_test, y_pred)
 
-def main():
-  iris = ModelIris.load()
-  wine = ModelWine.load()
+import itertools as it
 
+def create_noisy_datasets(iris: DatasetIris, wine: DatasetWine) -> Mapping[str, DataFrame]:
   datasets = {
     "iris-base": iris,
-    "iris-static_noise1": DatasetNoise(iris).add_static_noise('noise', 0.1).build(),
-    "iris-static_noise5": DatasetNoise(iris).add_static_noises('noise', 5, 0.1).build(),
     "wine-base": wine,
   }
 
-  model_factories = {
+  for (
+      dataset,
+      use_noise_input,
+      random_input_type,
+      random_input_scale,
+      random_input_count,
+      use_noise_output,
+      random_output_scale) \
+      in it.product(
+    (iris, wine),
+    (False, True),
+    ('static', 'random', 'corr-static', 'corr-random'),
+    (0.1, 0.25, 0.5, 1.0),
+    range(1, 6),
+    (False, True),
+    (0.1, 0.25, 0.5, 1.0),
+  ):
+    dataset_label = 'iris' if dataset is iris else 'wine'
+
+    if use_noise_input:
+      match random_input_type:
+        case 'static':
+          dataset_label += f'_i-noise-{random_input_type}-{random_input_count}-({random_input_scale})'
+        case 'random':
+          dataset_label += f'_i-noise-{random_input_type}-{random_input_count}-({-random_input_scale}, {random_input_scale})'
+        case 'corr-static':
+          dataset_label += f'_i-noise-{random_input_type}-{random_input_count}'
+        case 'corr-random':
+          dataset_label += f'_i-noise-{random_input_type}-{random_input_count}'
+
+    if use_noise_output:
+      dataset_label += f'_o-noise-{random_output_scale}'
+
+    if dataset_label in datasets: continue
+
+    noise = DatasetNoise(dataset)
+    if use_noise_input:
+      match random_input_type:
+        case 'static':
+          noise.add_static_noises('noise', random_input_count, random_input_scale)
+        case 'random':
+          noise.add_random_noises('noise', random_input_count, (-random_input_scale, random_input_scale))
+        case 'corr-static':
+          column = dataset.columns[np.random.randint(0, len(dataset.columns))]
+
+          noise.add_static_correlated_noises('noise', column, random_input_count)
+        case 'corr-random':
+          column = dataset.columns[np.random.randint(0, len(dataset.columns))]
+
+          noise.add_random_correlated_noises('noise', column, random_input_count)
+
+    if use_noise_output:
+      noise.shuffle('target', random_output_scale)
+
+    datasets[dataset_label] = noise.build()
+  return datasets
+
+def create_model_factories():
+  return {
     "SVC": lambda: SVC(),
     "KNN2": lambda: KNeighborsClassifier(n_neighbors=2),
     "KNN3": lambda: KNeighborsClassifier(n_neighbors=3),
@@ -65,25 +121,31 @@ def main():
     "MLP": lambda: MLPClassifier(max_iter=100_000),
   }
 
+def main():
+  iris = ModelIris.load()
+  wine = ModelWine.load()
+
+  datasets = create_noisy_datasets(iris, wine)
+  model_factories = create_model_factories()
+
   score_map: Mapping[str, list[float]] = defaultdict(list)
 
   RunCount = 1
   for dataset_label, dataset in datasets.items():
     print(f"Running dataset: {dataset_label}")
-    for model_label, factory in model_factories.items():
+    for model_label, create_model in model_factories.items():
       print(f"- Running model: {model_label}")
       score_map[f'{dataset_label}-{model_label}'] = [
-        score_model(factory, dataset)
+        score_model(create_model, dataset)
         for _ in range(RunCount)
       ]
 
-  import numpy as np
   for key, scores in score_map.items():
-    print(f"{key}:mean  : {np.mean(scores)*100:06.2f}%")
-    print(f"{key}:median: {np.median(scores)*100:06.2f}%")
-    print(f"{key}:std   : {np.std(scores)*100:06.2f}%")
-    print(f"{key}:min   : {np.min(scores)*100:06.2f}%")
-    print(f"{key}:max   : {np.max(scores)*100:06.2f}%")
+    print(f"{key}:mean  : {np.mean(scores) * 100:06.2f}%")
+    print(f"{key}:median: {np.median(scores) * 100:06.2f}%")
+    print(f"{key}:std   : {np.std(scores) * 100:06.2f}%")
+    print(f"{key}:min   : {np.min(scores) * 100:06.2f}%")
+    print(f"{key}:max   : {np.max(scores) * 100:06.2f}%")
     print()
 
 if __name__ == '__main__':

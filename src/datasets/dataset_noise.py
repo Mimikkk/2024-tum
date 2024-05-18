@@ -83,9 +83,7 @@ class DatasetNoise:
     if column_id not in self.frame.columns: self.add_empty(column_id)
 
   def shuffle(self, column_id: str, percentage: float) -> 'DatasetNoise':
-    col = self.frame[column_id]
-    indices = col.sample(frac=percentage).index
-    col.loc[indices] = col.sample(frac=1).values
+    self.frame[column_id] = self.frame[column_id].sample(frac=1 - percentage).reset_index(drop=True)
     return self
 
   def build(self) -> DataFrame:
