@@ -29,7 +29,6 @@ def summarize_metric(scores: list[float]) -> MetricSummary: return MetricSummary
 
 ExperimentsSummary = dict[str, ScoreSummary]
 
-# @memo(type='file', hashstr='results', verbose=True)
 def summarize_results(result: ExperimentsResult) -> ExperimentsSummary:
   return {
     key: ScoreSummary(

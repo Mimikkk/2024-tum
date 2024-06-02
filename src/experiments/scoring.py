@@ -4,8 +4,6 @@ import numpy as np
 from pandas import DataFrame, Series
 from sklearn.metrics import accuracy_score, confusion_matrix, recall_score, precision_score
 
-from sklearn.model_selection import train_test_split
-
 from src.experiments.models import Model
 
 class SplitResult(NamedTuple):
@@ -14,11 +12,25 @@ class SplitResult(NamedTuple):
   y_train: Series
   y_test: Series
 
-def split_dataset(dataset: DataFrame) -> SplitResult:
-  X = dataset.drop(columns=['target'])
-  y = dataset['target']
+def split_dataset(dataset: tuple[DataFrame, DataFrame]):
+  train_dataset, test_dataset = dataset
 
-  return SplitResult(*train_test_split(X, y, test_size=0.2))
+  total = len(train_dataset)
+  train_indices = np.random.choice(train_dataset.index, int(total * 0.8), replace=False)
+  np.random.shuffle(train_indices)
+
+  test_indices = list(train_dataset.index.difference(train_indices))
+  np.random.shuffle(test_indices)
+
+  train = train_dataset.loc[train_indices]
+  test = train_dataset.loc[test_indices]
+
+  x_train = train.drop(columns=['target'])
+  x_test = test.drop(columns=['target'])
+  y_train = train['target']
+  y_test = test['target']
+
+  return SplitResult(x_train, x_test, y_train, y_test)
 
 class ScoreResult(NamedTuple):
   accuracy: float
@@ -26,8 +38,8 @@ class ScoreResult(NamedTuple):
   precision: float
   confusion_matrix: np.ndarray
 
-def score_model(model: Model, frame: DataFrame) -> ScoreResult:
-  x_train, x_test, y_train, y_test = split_dataset(frame)
+def score_model(model: Model, dataset: tuple[DataFrame, DataFrame]) -> ScoreResult:
+  x_train, x_test, y_train, y_test = split_dataset(dataset)
 
   model.fit(x_train, y_train)
   y_pred = model.predict(x_test)

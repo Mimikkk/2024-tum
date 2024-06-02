@@ -11,7 +11,7 @@ class ExperimentResult(NamedTuple):
   scores: list[ScoreResult]
 
 def run_experiment(
-    dataset: DataFrame,
+    dataset: tuple[DataFrame, DataFrame],
     dataset_label: str,
     create_model: Callable[[], Model],
     model_label: str,
@@ -32,9 +32,8 @@ def join_results(accumulator: ExperimentsResult, result: ExperimentResult) -> Ex
   accumulator[result.name] = result.scores
   return accumulator
 
-
 def run_experiments(
-    datasets: Mapping[str, DataFrame],
+    datasets: Mapping[str, tuple[DataFrame, DataFrame]],
     model_descriptors: Mapping[str, Callable[[], Model]],
     run_count: int
 ) -> ExperimentsResult:
