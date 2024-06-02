@@ -8,24 +8,26 @@ from pandas import DataFrame, Series
 # Dodawanie szumu do istniejących cech wejściowych ze skorelowanym szumem
 # Dodawanie szumu na wyjściu (losowe zmiany etykiet klas w części obiektów)
 
+Scale = tuple[float, float]
+
 def norm_column(column: Series) -> Series:
   return (column - column.min()) / (column.max() - column.min())
 
-def scale_random(count: int, scale: tuple[float, float]) -> np.ndarray:
+def scale_random(count: int, scale: Scale) -> np.ndarray:
   min_scale, max_scale = scale
   return min_scale + (max_scale - min_scale) * np.random.rand(count)
 
 def create_static_noise(column: Series, scale: float | Series | np.ndarray) -> Series:
   return (column.max() - column.min()) * scale
 
-def create_random_noise(column: Series, scale: tuple[float, float]) -> Series:
+def create_random_noise(column: Series, scale: Scale) -> Series:
   return create_static_noise(column, scale_random(column.size, scale))
 
 def create_static_correlated_noise(column: Series, correlated_column: Series) -> Series:
   return create_static_noise(column, norm_column(correlated_column))
 
-def create_random_correlated_noise(column: Series, correlated_column: Series) -> Series:
-  return create_static_correlated_noise(column, correlated_column * np.random.rand(column.size))
+def create_random_correlated_noise(column: Series, correlated_column: Series, scale: Scale) -> Series:
+  return create_static_correlated_noise(column, correlated_column * scale_random(column.size, scale))
 
 class DatasetNoise:
   def __init__(self, frame: DataFrame):
@@ -48,11 +50,11 @@ class DatasetNoise:
       self.add_static_noise(f'{column_id}-{i}', scale)
     return self
 
-  def add_random_noise(self, column_id: str, scale: tuple[float, float]) -> 'DatasetNoise':
+  def add_random_noise(self, column_id: str, scale: Scale) -> 'DatasetNoise':
     self.validate_column(column_id)
     return self.add_noise(column_id, create_random_noise(self.frame[column_id], scale))
 
-  def add_random_noises(self, column_id: str, count: int, scale: tuple[float, float]) -> 'DatasetNoise':
+  def add_random_noises(self, column_id: str, count: int, scale: Scale) -> 'DatasetNoise':
     for i in range(count):
       self.add_random_noise(f'{column_id}-{i}', scale)
     return self
@@ -68,15 +70,16 @@ class DatasetNoise:
       self.add_static_correlated_noise(f'{column_id}-{i}', correlated_column_id)
     return self
 
-  def add_random_correlated_noise(self, column_id: str, correlated_column_id: str) -> 'DatasetNoise':
+  def add_random_correlated_noise(self, column_id: str, correlated_column_id: str, scale: Scale) -> 'DatasetNoise':
     self.validate_column(column_id)
     column_a = self.frame[column_id]
     column_b = self.frame[correlated_column_id]
-    return self.add_noise(column_id, create_random_correlated_noise(column_a, column_b))
+    return self.add_noise(column_id, create_random_correlated_noise(column_a, column_b, scale))
 
-  def add_random_correlated_noises(self, column_id: str, correlated_column_id: str, count: int) -> 'DatasetNoise':
+  def add_random_correlated_noises(self, column_id: str, correlated_column_id: str, count: int,
+                                   scale: Scale) -> 'DatasetNoise':
     for i in range(count):
-      self.add_random_correlated_noise(f'{column_id}-{i}', correlated_column_id)
+      self.add_random_correlated_noise(f'{column_id}-{i}', correlated_column_id, scale)
     return self
 
   def validate_column(self, column_id: str) -> None:
@@ -90,4 +93,4 @@ class DatasetNoise:
     return self
 
   def build(self) -> DataFrame:
-    return self.frame
+    return self.frame.copy(deep=True)
